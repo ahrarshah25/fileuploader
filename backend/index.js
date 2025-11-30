@@ -23,27 +23,18 @@ function checkAdmin(req, res, next) {
 // list files (optionally prefix)
 app.get('/admin/list', checkAdmin, async (req, res) => {
   const prefix = req.query.prefix || '';
-  try {
-    const { data, error } = await supabase.storage.from('user-uploads').list(prefix, { limit: 1000 });
-    if (error) return res.status(400).json({ error: error.message });
-    res.json({ data });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  const { data, error } = await supabase.storage.from('user-uploads').list(prefix);
+  if (error) return res.status(400).json({ error: error.message });
+  res.json({ data });
 });
 
 // delete file
 app.post('/admin/delete', checkAdmin, async (req, res) => {
   const { path } = req.body;
-  if (!path) return res.status(400).json({ error: 'path required' });
-  try {
-    const { data, error } = await supabase.storage.from('user-uploads').remove([path]);
-    if (error) return res.status(400).json({ error: error.message });
-    res.json({ data });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  const { data, error } = await supabase.storage.from('user-uploads').remove([path]);
+  if (error) return res.status(400).json({ error: error.message });
+  res.json({ data });
 });
 
 const port = process.env.PORT || 8080;
-app.listen(port, ()=> console.log('Admin server listening on', port));
+app.listen(port, () => console.log('Admin server listening on', port));
