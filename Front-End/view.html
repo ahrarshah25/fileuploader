@@ -68,75 +68,52 @@ body{background:#071029; color:#eef2f6; min-height:100vh; font-family:sans-serif
     userEmail.textContent = user.email;
 
     // LOAD FILES FOR THIS USER
-    loadFiles(user.id);
+    loadFiles();
   }
 
 
   // -------------------------
   // LOAD USER FILES
   // -------------------------
-  async function loadFiles(uid) {
-    fileList.innerHTML = "<div style='color:#999'>Loading files...</div>";
+async function loadFiles() {
+  const uid = localStorage.getItem("user_uid");
 
-    // USER FOLDER → uploads/user_id/
-    const { data, error } = await supabase.storage
-      .from(BUCKET)
-      .list(uid, {
-        limit: 100,
-        sortBy: { column: "name", order: "desc" }
-      });
+  console.log("Loading folder:", uid);
 
-    if (error) {
-      fileList.innerHTML = "<div style='color:red'>Error loading files</div>";
-      return;
-    }
+  const { data, error } = await supabase.storage
+    .from("uploads")
+    .list(uid, {
+      limit: 200,
+      sortBy: { column: "name", order: "desc" }
+    });
 
-    if (!data || data.length === 0) {
-      fileList.innerHTML = "<div style='color:#999'>No files uploaded yet</div>";
-      return;
-    }
+  console.log("List result:", data, error);
 
-    fileList.innerHTML = "";
-
-    for (const file of data) {
-      const fullPath = `${uid}/${file.name}`;
-
-      // CREATE SIGNED URL
-      const { data: urlData } = await supabase.storage
-        .from(BUCKET)
-        .createSignedUrl(fullPath, 3600);
-
-      const fileUrl = urlData?.signedUrl;
-
-      const ext = file.name.split(".").pop().toLowerCase();
-
-      let preview = "";
-
-      if (["png", "jpg", "jpeg", "webp", "gif"].includes(ext)) {
-        preview = `<img src="${fileUrl}" style="width:100%;border-radius:10px;">`;
-      } else {
-        preview = `<div style='color:#aaa;font-size:12px'>${ext.toUpperCase()} File</div>`;
-      }
-
-      const card = document.createElement("div");
-      card.style = `
-        background:#1e1e1e;
-        padding:12px;
-        border-radius:10px;
-        margin-bottom:12px;
-        color:white;
-      `;
-
-      card.innerHTML = `
-        ${preview}
-        <div style="margin-top:8px;font-size:14px;word-break:break-all;">
-          ${file.name}
-        </div>
-      `;
-
-      fileList.appendChild(card);
-    }
+  if (!data || data.length === 0) {
+    fileList.innerHTML = "<div style='color:#999'>No files uploaded yet</div>";
+    return;
   }
+
+  fileList.innerHTML = "";
+
+  for (let f of data) {
+    const fullPath = `${uid}/${f.name}`;
+
+    const { data: urlData } = await supabase.storage
+      .from("uploads")
+      .createSignedUrl(fullPath, 3600);
+
+    const fileUrl = urlData?.signedUrl;
+
+    fileList.innerHTML += `
+      <div class="file-card">
+        <img src="${fileUrl}" />
+        <div>${f.name}</div>
+      </div>
+    `;
+  }
+}
+
 
 
   // -------------------------
