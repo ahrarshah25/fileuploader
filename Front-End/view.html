@@ -40,49 +40,114 @@ body{background:#071029; color:#eef2f6; min-height:100vh; font-family:sans-serif
 </main>
 
 <script type="module">
-import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+  import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 
-const SUPABASE_URL='https://laxgelzpqmohldjatwux.supabase.co';
-const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxheGdlbHpwcW1vaGxkamF0d3V4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ1MDE2NzAsImV4cCI6MjA4MDA3NzY3MH0.jcmBW_oTUjcwYgsbrUdYjwbTYQlrgIPKM1s2EPc_OvU';
-const BUCKET='uploads';
+  const SUPABASE_URL = "https://laxgelzpqmohldjatwux.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxheGdlbHpwcW1vaGxkamF0d3V4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ1MDE2NzAsImV4cCI6MjA4MDA3NzY3MH0.jcmBW_oTUjcwYgsbrUdYjwbTYQlrgIPKM1s2EPc_OvU";
+  const BUCKET = "uploads";
 
-const supabase=createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
-const fileList=document.getElementById('fileList');
-const userEmail=document.getElementById('userEmail');
-const signOut=document.getElementById('signOut');
+  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-async function checkAuth(){
-const { data } = await supabase.auth.getSession();
-const user=data?.session?.user||null;
-if(!user){window.location.href='login.html'; return null;}
-userEmail.textContent=user.email;
-loadFiles(user.id);
-return user;
-}
+  const fileList = document.getElementById("fileList");
+  const userEmail = document.getElementById("userEmail");
+  const signOut = document.getElementById("signOut");
 
-signOut.addEventListener('click',async()=>{await supabase.auth.signOut(); window.location.href='login.html';});
 
-async function loadFiles(uid){
-fileList.innerHTML='<div class="muted">Loading files...</div>';
-const { data,error } = await supabase.storage.from(BUCKET).list(uid,{limit:200, sortBy:{column:'name',order:'desc'}});
-if(error){fileList.innerHTML='<div class="text-danger small">Failed to list files</div>'; return;}
-if(!data || data.length===0){fileList.innerHTML='<div class="muted">No files uploaded yet</div>'; return;}
+  // -------------------------
+  // CHECK AUTH
+  // -------------------------
+  async function checkAuth() {
+    const { data } = await supabase.auth.getSession();
+    const user = data?.session?.user;
 
-fileList.innerHTML='';
-for(const item of data){
-  const row=document.createElement('div'); row.className='file-card';
-  const { data:urlData } = await supabase.storage.from(BUCKET).createSignedUrl(`${uid}/${item.name}`,60*60);
-  const fileUrl=urlData?.signedUrl||'#';
-  const ext=item.name.split('.').pop().toLowerCase();
-  let content='';
-  if(['png','jpg','jpeg','gif','webp'].includes(ext)){content=`<img src="${fileUrl}" alt="${item.name}">`;}
-  else{content=`<div class="muted">[File]</div>`;}
-  row.innerHTML=`${content}<div class="filename">${item.name}</div>`;
-  fileList.appendChild(row);
-}
-}
+    if (!user) {
+      window.location.href = "login.html";
+      return;
+    }
 
-(async()=>{await checkAuth();})();
+    userEmail.textContent = user.email;
+
+    // LOAD FILES FOR THIS USER
+    loadFiles(user.id);
+  }
+
+
+  // -------------------------
+  // LOAD USER FILES
+  // -------------------------
+  async function loadFiles(uid) {
+    fileList.innerHTML = "<div style='color:#999'>Loading files...</div>";
+
+    // USER FOLDER → uploads/user_id/
+    const { data, error } = await supabase.storage
+      .from(BUCKET)
+      .list(uid, {
+        limit: 100,
+        sortBy: { column: "name", order: "desc" }
+      });
+
+    if (error) {
+      fileList.innerHTML = "<div style='color:red'>Error loading files</div>";
+      return;
+    }
+
+    if (!data || data.length === 0) {
+      fileList.innerHTML = "<div style='color:#999'>No files uploaded yet</div>";
+      return;
+    }
+
+    fileList.innerHTML = "";
+
+    for (const file of data) {
+      const fullPath = `${uid}/${file.name}`;
+
+      // CREATE SIGNED URL
+      const { data: urlData } = await supabase.storage
+        .from(BUCKET)
+        .createSignedUrl(fullPath, 3600);
+
+      const fileUrl = urlData?.signedUrl;
+
+      const ext = file.name.split(".").pop().toLowerCase();
+
+      let preview = "";
+
+      if (["png", "jpg", "jpeg", "webp", "gif"].includes(ext)) {
+        preview = `<img src="${fileUrl}" style="width:100%;border-radius:10px;">`;
+      } else {
+        preview = `<div style='color:#aaa;font-size:12px'>${ext.toUpperCase()} File</div>`;
+      }
+
+      const card = document.createElement("div");
+      card.style = `
+        background:#1e1e1e;
+        padding:12px;
+        border-radius:10px;
+        margin-bottom:12px;
+        color:white;
+      `;
+
+      card.innerHTML = `
+        ${preview}
+        <div style="margin-top:8px;font-size:14px;word-break:break-all;">
+          ${file.name}
+        </div>
+      `;
+
+      fileList.appendChild(card);
+    }
+  }
+
+
+  // -------------------------
+  // LOGOUT
+  // -------------------------
+  signOut.addEventListener("click", async () => {
+    await supabase.auth.signOut();
+    window.location.href = "login.html";
+  });
+
+  checkAuth();
 </script>
 </body>
 </html>
