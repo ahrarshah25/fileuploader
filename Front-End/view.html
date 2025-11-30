@@ -76,43 +76,28 @@ body{background:#071029; color:#eef2f6; min-height:100vh; font-family:sans-serif
   // LOAD USER FILES
   // -------------------------
 async function loadFiles() {
-  const uid = localStorage.getItem("user_uid");
-
-  console.log("Loading folder:", uid);
+  const bucket = "uploads"; // your Supabase bucket name
 
   const { data, error } = await supabase.storage
-    .from("uploads")
-    .list(uid, {
-      limit: 200,
-      sortBy: { column: "name", order: "desc" }
+    .from(bucket)
+    .list("", {
+      limit: 100,
+      offset: 0,
+      sortBy: { column: "name", order: "asc" }
     });
 
   console.log("List result:", data, error);
 
-  if (!data || data.length === 0) {
-    fileList.innerHTML = "<div style='color:#999'>No files uploaded yet</div>";
-    return;
-  }
+  const container = document.getElementById("files");
+  container.innerHTML = "";
 
-  fileList.innerHTML = "";
-
-  for (let f of data) {
-    const fullPath = `${uid}/${f.name}`;
-
-    const { data: urlData } = await supabase.storage
-      .from("uploads")
-      .createSignedUrl(fullPath, 3600);
-
-    const fileUrl = urlData?.signedUrl;
-
-    fileList.innerHTML += `
-      <div class="file-card">
-        <img src="${fileUrl}" />
-        <div>${f.name}</div>
-      </div>
-    `;
+  if (data) {
+    data.forEach(file => {
+      container.innerHTML += `<p>${file.name}</p>`;
+    });
   }
 }
+loadFiles();
 
 
 
