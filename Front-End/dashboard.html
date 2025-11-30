@@ -20,29 +20,23 @@
 <h1>Dashboard - Upload Image</h1>
 
 <input type="file" id="fileInput" accept="image/*">
-<button onclick="uploadFile()">Upload</button>
+<button id="uploadBtn">Upload</button>
 
 <div id="status"></div>
 <img id="preview" src="" alt="Uploaded Image Preview">
-
-<script type="module">
-  // Replace with your Supabase values:
-  import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+</body>
+  <script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
 const SUPABASE_URL = 'https://bdqrcfadxjvlgxibiiwl.supabase.co';
-const SUPABASE_SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJkcXJjZmFkeGp2bGd4aWJpaXdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ1MTIwNDcsImV4cCI6MjA4MDA4ODA0N30.BQ8UJM2pmL_9yk62D8d5qL4tYVSHe1YeXCfgRuCcva8'; // Service key to bypass RLS
+const SUPABASE_SERVICE_KEY = 'YOUR_SERVICE_KEY';
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
 async function uploadFile() {
     const fileInput = document.getElementById('fileInput');
-    if (!fileInput.files.length) {
-        alert('Please select a file!');
-        return;
-    }
+    if (!fileInput.files.length) return alert('Please select a file!');
     const file = fileInput.files[0];
     const fileName = `${Date.now()}_${file.name}`;
-
     document.getElementById('status').innerText = 'Uploading...';
-
     const { data, error } = await supabase.storage.from('uploads').upload(fileName, file);
 
     if (error) {
@@ -52,10 +46,10 @@ async function uploadFile() {
         document.getElementById('status').innerText = 'Upload successful!';
         const publicUrl = supabase.storage.from('uploads').getPublicUrl(fileName).data.publicUrl;
         document.getElementById('preview').src = publicUrl;
-        console.log('Public URL:', publicUrl);
     }
 }
-</script>
 
-</body>
+// Attach event listener
+document.getElementById('uploadBtn').addEventListener('click', uploadFile);
+</script>
 </html>
