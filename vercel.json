@@ -1,32 +1,28 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
   "version": 2,
+  "name": "fileuploader",
   "builds": [
     {
-      "src": "backend/server.js",
+      "src": "backend/index.js",
       "use": "@vercel/node"
     },
     {
-      "src": "frontend/**/*.html",
-      "use": "@vercel/static"
-    },
-    {
-      "src": "frontend/**/*.js",
-      "use": "@vercel/static"
-    },
-    {
-      "src": "frontend/**/*.css",
+      "src": "Front-End/**/*",
       "use": "@vercel/static"
     }
   ],
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "/backend/server.js"
+      "dest": "backend/index.js"
     },
     {
       "src": "/(.*)",
-      "dest": "/frontend/$1"
+      "dest": "Front-End/$1"
+    },
+    {
+      "src": "/",
+      "dest": "Front-End/index.html"
     }
   ]
 }
