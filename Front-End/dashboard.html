@@ -1,14 +1,14 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dashboard — FileVault</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
-body{background: linear-gradient(180deg,#071029,#0b1530); color:#eef2f6; min-height:100vh}
-.panel{background: rgba(255,255,255,0.03); border-radius:12px; padding:18px; margin-top:18px}
+body{background: linear-gradient(180deg,#071029,#0b1530); color:#eef2f6; min-height:100vh;}
+.panel{background: rgba(255,255,255,0.03); border-radius:12px; padding:18px; margin-top:18px;}
 .uploader{border:2px dashed rgba(255,255,255,0.04); padding:26px; border-radius:10px; text-align:center; cursor:pointer;}
 .uploader.dragover{border-color:#7c3aed; transform:translateY(-3px);}
 .muted{color:#b8c4d3;}
@@ -29,7 +29,7 @@ body{background: linear-gradient(180deg,#071029,#0b1530); color:#eef2f6; min-hei
         <h5>Upload files</h5>
         <div id="uploader" class="uploader my-3">
           <p id="uploaderMsg">Drag & drop files here or choose files</p>
-          <input id="fileInput" type="file" multiple class="form-control" style="cursor:pointer;" />
+          <input id="fileInput" type="file" multiple class="form-control" style="cursor:pointer;">
           <div id="progress" class="muted small mt-2"></div>
         </div>
         <div id="fileList" class="mt-3"></div>
@@ -41,7 +41,7 @@ body{background: linear-gradient(180deg,#071029,#0b1530); color:#eef2f6; min-hei
 <script type="module">
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
 
-// Supabase setup
+// Supabase config
 const SUPABASE_URL = 'https://bdqrcfadxjvlgxibiiwl.supabase.co';
 const SUPABASE_ANON_KEY = 'YOUR_ANON_KEY_HERE'; // replace with your anon key
 const BUCKET = 'user-uploads';
@@ -54,7 +54,7 @@ const uploaderMsg = document.getElementById('uploaderMsg');
 const progress = document.getElementById('progress');
 const fileList = document.getElementById('fileList');
 
-// Drag & Drop UI
+// Drag & drop UI
 ['dragenter','dragover'].forEach(e => uploader.addEventListener(e, ev => { 
   ev.preventDefault(); uploader.classList.add('dragover'); uploaderMsg.textContent='Drop files to upload'; 
 }));
@@ -65,31 +65,29 @@ const fileList = document.getElementById('fileList');
 uploader.addEventListener('drop', ev => handleFiles(Array.from(ev.dataTransfer.files)));
 fileInput.addEventListener('change', ev => { handleFiles(Array.from(ev.target.files)); fileInput.value=''; });
 
-// sanitize filename to avoid errors
+// sanitize filename
 function sanitizeFilename(name){
-  return name.replace(/[^a-zA-Z0-9.\-_]/g, '_'); 
+  return name.replace(/[^a-zA-Z0-9.\-_]/g,'_');
 }
 
 // handle multiple files
 async function handleFiles(files){
-  const uid = 'default_user'; // Replace with auth user id if available
+  const uid = 'default_user';
   for(const file of files) await uploadFile(uid, file);
   await loadFiles(uid);
 }
 
-// upload file to Supabase storage
+// upload file
 async function uploadFile(uid, file){
-  const maxMB = 100;
-  if(file.size > maxMB*1024*1024){ alert('File too large'); return; }
   const path = `${uid}/${Date.now()}_${sanitizeFilename(file.name)}`;
   progress.textContent = `Uploading ${file.name}...`;
-  const { error } = await supabase.storage.from(BUCKET).upload(path, file, { cacheControl: '3600', upsert: false });
+  const { error } = await supabase.storage.from(BUCKET).upload(path, file, { upsert: false });
   if(error){ alert('Upload error: '+error.message); progress.textContent=''; return; }
   progress.textContent = `Uploaded ${file.name}`;
   setTimeout(()=>progress.textContent='', 1500);
 }
 
-// load files and display
+// load files list
 async function loadFiles(uid){
   fileList.innerHTML = '<div class="muted">Loading files...</div>';
   const { data, error } = await supabase.storage.from(BUCKET).list(uid, { limit: 200, sortBy: { column: 'name', order: 'desc' } });
@@ -103,13 +101,13 @@ async function loadFiles(uid){
 
     const left = document.createElement('div');
     left.innerHTML = `<div><strong>${item.name}</strong></div>
-                      <div class="muted small">${item.size ? (item.size/1024).toFixed(1)+' KB' : ''} • ${new Date(item.updated_at).toLocaleString()}</div>`;
+                      <div class="muted small">${item.size ? (item.size/1024).toFixed(1)+' KB' : ''}</div>`;
 
     const right = document.createElement('div');
-    // public URL
     const openUrl = `https://bdqrcfadxjvlgxibiiwl.supabase.co/storage/v1/object/public/${BUCKET}/${uid}/${item.name}`;
     right.innerHTML = `<a class="btn btn-sm btn-light me-1" href="${openUrl}" target="_blank">Open</a>
                        <button class="btn btn-sm btn-outline-light" data-name="${item.name}">Delete</button>`;
+
     right.querySelector('button').addEventListener('click', async ()=>{
       if(!confirm('Delete file?')) return;
       const { error } = await supabase.storage.from(BUCKET).remove([`${uid}/${item.name}`]);
@@ -124,7 +122,7 @@ async function loadFiles(uid){
 }
 
 // initialize
-loadFiles('default_user'); 
+loadFiles('default_user');
 </script>
 </body>
 </html>
