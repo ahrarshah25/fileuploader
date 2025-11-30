@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>View Files Gallery — FileVault</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+body{background:#071029; color:#eef2f6; min-height:100vh; font-family:sans-serif;}
+.panel{background:rgba(255,255,255,0.03); border-radius:12px; padding:18px; margin-top:18px;}
+.gallery{display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:15px;}
+.file-card{background:rgba(0,0,0,0.2); border-radius:8px; overflow:hidden; display:flex; flex-direction:column; align-items:center; padding:10px;}
+.file-card img{width:100%; height:auto; border-radius:6px; margin-bottom:5px;}
+.file-card .filename{font-size:0.85rem; text-align:center; word-break:break-word;}
+.muted{color:#b8c4d3;}
+.navbar a, .navbar button{font-size:0.9rem;}
+</style>
+</head>
+<body>
+<nav class="navbar navbar-dark">
+<div class="container">
+<a class="navbar-brand" href="index.html">FileVault</a>
+<div>
+<span id="userEmail" class="me-3 muted"></span>
+<button id="signOut" class="btn btn-outline-light btn-sm">Sign Out</button>
+</div>
+</div>
+</nav>
+
+<main class="container">
+<div class="row">
+<div class="col-lg-12">
+<div class="panel">
+<h5>Your Uploaded Files</h5>
+<div id="fileList" class="gallery"><div class="muted">Loading files...</div></div>
+</div>
+</div>
+</div>
+</main>
+
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+const SUPABASE_URL='https://laxgelzpqmohldjatwux.supabase.co';
+const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxheGdlbHpwcW1vaGxkamF0d3V4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ1MDE2NzAsImV4cCI6MjA4MDA3NzY3MH0.jcmBW_oTUjcwYgsbrUdYjwbTYQlrgIPKM1s2EPc_OvU';
+const BUCKET='uploads';
+
+const supabase=createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+const fileList=document.getElementById('fileList');
+const userEmail=document.getElementById('userEmail');
+const signOut=document.getElementById('signOut');
+
+async function checkAuth(){
+const { data } = await supabase.auth.getSession();
+const user=data?.session?.user||null;
+if(!user){window.location.href='login.html'; return null;}
+userEmail.textContent=user.email;
+loadFiles(user.id);
+return user;
+}
+
+signOut.addEventListener('click',async()=>{await supabase.auth.signOut(); window.location.href='login.html';});
+
+async function loadFiles(uid){
+fileList.innerHTML='<div class="muted">Loading files...</div>';
+const { data,error } = await supabase.storage.from(BUCKET).list(uid,{limit:200, sortBy:{column:'name',order:'desc'}});
+if(error){fileList.innerHTML='<div class="text-danger small">Failed to list files</div>'; return;}
+if(!data || data.length===0){fileList.innerHTML='<div class="muted">No files uploaded yet</div>'; return;}
+
+fileList.innerHTML='';
+for(const item of data){
+  const row=document.createElement('div'); row.className='file-card';
+  const { data:urlData } = await supabase.storage.from(BUCKET).createSignedUrl(`${uid}/${item.name}`,60*60);
+  const fileUrl=urlData?.signedUrl||'#';
+  const ext=item.name.split('.').pop().toLowerCase();
+  let content='';
+  if(['png','jpg','jpeg','gif','webp'].includes(ext)){content=`<img src="${fileUrl}" alt="${item.name}">`;}
+  else{content=`<div class="muted">[File]</div>`;}
+  row.innerHTML=`${content}<div class="filename">${item.name}</div>`;
+  fileList.appendChild(row);
+}
+}
+
+(async()=>{await checkAuth();})();
+</script>
+</body>
+</html>
