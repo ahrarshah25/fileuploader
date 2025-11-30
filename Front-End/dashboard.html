@@ -9,10 +9,10 @@
 <style>
 body{background: linear-gradient(180deg,#071029,#0b1530); color:#eef2f6; min-height:100vh}
 .panel{background: rgba(255,255,255,0.03); border-radius:12px; padding:18px; margin-top:18px}
-.uploader{border:2px dashed rgba(255,255,255,0.04); padding:26px; border-radius:10px; text-align:center}
-.uploader.dragover{border-color:#7c3aed; transform:translateY(-3px)}
-.muted{color:#b8c4d3}
-.file-card{background: rgba(0,0,0,0.2); padding:8px; border-radius:8px}
+.uploader{border:2px dashed rgba(255,255,255,0.04); padding:26px; border-radius:10px; text-align:center; cursor:pointer;}
+.uploader.dragover{border-color:#7c3aed; transform:translateY(-3px);}
+.muted{color:#b8c4d3;}
+.file-card{background: rgba(0,0,0,0.2); padding:8px; border-radius:8px;}
 </style>
 </head>
 <body>
@@ -29,7 +29,7 @@ body{background: linear-gradient(180deg,#071029,#0b1530); color:#eef2f6; min-hei
         <h5>Upload files</h5>
         <div id="uploader" class="uploader my-3">
           <p id="uploaderMsg">Drag & drop files here or choose files</p>
-          <input id="fileInput" type="file" multiple class="form-control" />
+          <input id="fileInput" type="file" multiple class="form-control" style="cursor:pointer;" />
           <div id="progress" class="muted small mt-2"></div>
         </div>
         <div id="fileList" class="mt-3"></div>
@@ -43,8 +43,8 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 
 // Supabase setup
 const SUPABASE_URL = 'https://bdqrcfadxjvlgxibiiwl.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJkcXJjZmFkeGp2bGd4aWJpaXdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ1MTIwNDcsImV4cCI6MjA4MDA4ODA0N30.BQ8UJM2pmL_9yk62D8d5qL4tYVSHe1YeXCfgRuCcva8';
-const BUCKET = 'user-uploads'; // Bucket with no RLS
+const SUPABASE_ANON_KEY = 'YOUR_ANON_KEY_HERE'; // replace with your anon key
+const BUCKET = 'user-uploads';
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -54,31 +54,42 @@ const uploaderMsg = document.getElementById('uploaderMsg');
 const progress = document.getElementById('progress');
 const fileList = document.getElementById('fileList');
 
-['dragenter','dragover'].forEach(e => uploader.addEventListener(e, ev => { ev.preventDefault(); uploader.classList.add('dragover'); uploaderMsg.textContent='Drop files to upload'; }));
-['dragleave','drop'].forEach(e => uploader.addEventListener(e, ev => { ev.preventDefault(); uploader.classList.remove('dragover'); uploaderMsg.textContent='Drag & drop files here or choose files'; }));
+// Drag & Drop UI
+['dragenter','dragover'].forEach(e => uploader.addEventListener(e, ev => { 
+  ev.preventDefault(); uploader.classList.add('dragover'); uploaderMsg.textContent='Drop files to upload'; 
+}));
+['dragleave','drop'].forEach(e => uploader.addEventListener(e, ev => { 
+  ev.preventDefault(); uploader.classList.remove('dragover'); uploaderMsg.textContent='Drag & drop files here or choose files'; 
+}));
 
 uploader.addEventListener('drop', ev => handleFiles(Array.from(ev.dataTransfer.files)));
 fileInput.addEventListener('change', ev => { handleFiles(Array.from(ev.target.files)); fileInput.value=''; });
 
-function sanitizeFilename(name){ return name.replace(/[^a-zA-Z0-9.\-_ ]/g,''); }
+// sanitize filename to avoid errors
+function sanitizeFilename(name){
+  return name.replace(/[^a-zA-Z0-9.\-_]/g, '_'); 
+}
 
+// handle multiple files
 async function handleFiles(files){
-  const uid = 'default_user'; // Replace with user.id if using Auth
+  const uid = 'default_user'; // Replace with auth user id if available
   for(const file of files) await uploadFile(uid, file);
   await loadFiles(uid);
 }
 
+// upload file to Supabase storage
 async function uploadFile(uid, file){
   const maxMB = 100;
   if(file.size > maxMB*1024*1024){ alert('File too large'); return; }
   const path = `${uid}/${Date.now()}_${sanitizeFilename(file.name)}`;
   progress.textContent = `Uploading ${file.name}...`;
-  const { error } = await supabase.storage.from(BUCKET).upload(path, file);
+  const { error } = await supabase.storage.from(BUCKET).upload(path, file, { cacheControl: '3600', upsert: false });
   if(error){ alert('Upload error: '+error.message); progress.textContent=''; return; }
   progress.textContent = `Uploaded ${file.name}`;
   setTimeout(()=>progress.textContent='', 1500);
 }
 
+// load files and display
 async function loadFiles(uid){
   fileList.innerHTML = '<div class="muted">Loading files...</div>';
   const { data, error } = await supabase.storage.from(BUCKET).list(uid, { limit: 200, sortBy: { column: 'name', order: 'desc' } });
@@ -87,27 +98,33 @@ async function loadFiles(uid){
 
   fileList.innerHTML='';
   for(const item of data){
-    const row = document.createElement('div'); row.className='d-flex align-items-center justify-content-between mb-2 file-card';
+    const row = document.createElement('div'); 
+    row.className='d-flex align-items-center justify-content-between mb-2 file-card';
+
     const left = document.createElement('div');
     left.innerHTML = `<div><strong>${item.name}</strong></div>
                       <div class="muted small">${item.size ? (item.size/1024).toFixed(1)+' KB' : ''} • ${new Date(item.updated_at).toLocaleString()}</div>`;
+
     const right = document.createElement('div');
-    const { data: urlData } = await supabase.storage.from(BUCKET).createSignedUrl(`${uid}/${item.name}`, 60*60);
-    const openUrl = urlData?.signedUrl || '#';
+    // public URL
+    const openUrl = `https://bdqrcfadxjvlgxibiiwl.supabase.co/storage/v1/object/public/${BUCKET}/${uid}/${item.name}`;
     right.innerHTML = `<a class="btn btn-sm btn-light me-1" href="${openUrl}" target="_blank">Open</a>
                        <button class="btn btn-sm btn-outline-light" data-name="${item.name}">Delete</button>`;
-    right.querySelector('button').addEventListener('click', async () => {
+    right.querySelector('button').addEventListener('click', async ()=>{
       if(!confirm('Delete file?')) return;
       const { error } = await supabase.storage.from(BUCKET).remove([`${uid}/${item.name}`]);
       if(error){ alert('Delete failed: '+error.message); return; }
       loadFiles(uid);
     });
-    row.appendChild(left); row.appendChild(right); fileList.appendChild(row);
+
+    row.appendChild(left);
+    row.appendChild(right);
+    fileList.appendChild(row);
   }
 }
 
-// Init
-loadFiles('default_user'); // Replace with auth UID if available
+// initialize
+loadFiles('default_user'); 
 </script>
 </body>
 </html>
