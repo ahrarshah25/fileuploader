@@ -68,58 +68,78 @@ body{background:#071029; color:#eef2f6; min-height:100vh; font-family:sans-serif
     userEmail.textContent = user.email;
 
     // LOAD FILES FOR THIS USER
-    loadFiles();
+    loadFiles(user.id);
   }
 
 
   // -------------------------
   // LOAD USER FILES
   // -------------------------
-async function loadFiles() {
-  const { data: sessionData } = await supabase.auth.getSession();
-  const user = sessionData?.session?.user;
-  const userId = user.id;
+async function loadFiles(uid) {
+  console.log("Listing folder:", uid + "/");
 
-  console.log("Loading folder:", userId);
+  fileList.innerHTML = '<div class="muted">Loading files...</div>';
 
   const { data, error } = await supabase.storage
     .from(BUCKET)
-    .list(userId + "/", {
-      limit: 100,
-      offset: 0,
-      sortBy: { column: "name", order: "asc" }
+    .list(uid + "/", {
+      limit: 200,
+      sortBy: { column: "name", order: "desc" }
     });
 
   console.log("List result:", data, error);
 
-  const container = document.getElementById("fileList");
-  container.innerHTML = "";
-
-  if (!data || data.length === 0) {
-    container.innerHTML = `<div class="muted">No files uploaded yet</div>`;
+  if (error) {
+    fileList.innerHTML = '<div class="text-danger small">Failed to list files</div>';
     return;
   }
 
-  data.forEach(file => {
-    const fileUrl =
-      SUPABASE_URL +
-      "/storage/v1/object/public/" +
-      BUCKET +
-      "/" +
-      userId +
-      "/" +
-      file.name;
+  if (!data || data.length === 0) {
+    fileList.innerHTML = '<div class="muted">No files yet</div>';
+    return;
+  }
 
-    container.innerHTML += `
-      <div class="file-card">
-        <img src="${fileUrl}" onerror="this.src='placeholder.png'">
-        <div class="filename">${file.name}</div>
-      </div>
+  fileList.innerHTML = '';
+
+  for (const item of data) {
+    const filePath = `${uid}/${item.name}`;
+
+    // Signed URL
+    const { data: urlData } = await supabase.storage
+      .from(BUCKET)
+      .createSignedUrl(filePath, 60 * 60);
+
+    const url = urlData?.signedUrl || "#";
+
+    const row = document.createElement("div");
+    row.className = "d-flex align-items-center justify-content-between mb-2 file-card";
+
+    const left = document.createElement("div");
+    left.innerHTML = `
+      <div><strong>${item.name}</strong></div>
+      <div class="muted small">${new Date(item.updated_at).toLocaleString()}</div>
     `;
-  });
+
+    const right = document.createElement("div");
+    right.innerHTML = `
+      <a class="btn btn-sm btn-light me-1" href="${url}" target="_blank">Open</a>
+      <button class="btn btn-sm btn-outline-light" data-name="${item.name}">Delete</button>
+    `;
+
+    // Delete handler
+    right.querySelector("button").addEventListener("click", async () => {
+      if (!confirm("Delete file?")) return;
+
+      await supabase.storage.from(BUCKET).remove([filePath]);
+      loadFiles(uid);
+    });
+
+    row.appendChild(left);
+    row.appendChild(right);
+    fileList.appendChild(row);
+  }
 }
 
-loadFiles();
 
 
 
